@@ -1,0 +1,46 @@
+﻿@page "/product/add"
+@inject IProductService ProductService
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+
+<h3>Add New Product</h3>
+
+<EditForm Model="newProduct" OnValidSubmit="HandleValidSubmit">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
+    <div class="mb-3">
+        <label for="title" class="form-label">Title</label>
+        <InputText id="title" class="form-control" @bind-Value="newProduct.Title" />
+    </div>
+    <div class="mb-3">
+        <label for="description" class="form-label">Description</label>
+        <InputTextArea id="description" class="form-control" @bind-Value="newProduct.Description" />
+    </div>
+    <div class="mb-3">
+        <label for="price" class="form-label">Price</label>
+        <InputNumber id="price" class="form-control" @bind-Value="newProduct.Price" />
+    </div>
+    <div class="mb-3">
+        <label for="releaseDate" class="form-label">Release Date</label>
+        <InputDate id="releaseDate" class="form-control" @bind-Value="newProduct.ReleaseDate" />
+    </div>
+    <button type="submit" class="btn btn-primary">Add Product</button>
+</EditForm>
+
+@code {
+    private Product newProduct = new();
+
+    private async Task HandleValidSubmit()
+    {
+        var response = await ProductService.CreateProductAsync(newProduct);
+        if (response.Success)
+        {
+            NavigationManager.NavigateTo("/products");
+        }
+        else
+        {
+            await JSRuntime.InvokeVoidAsync("alert", "Failed to add product. Please try again.");
+        }
+    }
+}

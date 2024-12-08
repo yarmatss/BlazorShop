@@ -1,0 +1,72 @@
+﻿@page "/product/edit/{Id:int}"
+@inject IProductService ProductService
+@inject NavigationManager NavigationManager
+
+<h3>@(product.Id == 0 ? "Add Product" : "Edit Product")</h3>
+
+<EditForm Model="product" OnValidSubmit="HandleValidSubmit" class="form-group">
+    <DataAnnotationsValidator />
+    <ValidationSummary class="text-danger" />
+
+    <div class="mb-3">
+        <label for="title" class="form-label">Title</label>
+        <InputText id="title" @bind-Value="product.Title" class="form-control" />
+    </div>
+    <div class="mb-3">
+        <label for="description" class="form-label">Description</label>
+        <InputText id="description" @bind-Value="product.Description" class="form-control" />
+    </div>
+    <div class="mb-3">
+        <label for="price" class="form-label">Price</label>
+        <InputNumber id="price" @bind-Value="product.Price" class="form-control" />
+    </div>
+    <div class="mb-3">
+        <label for="releaseDate" class="form-label">Release Date</label>
+        <InputDate id="releaseDate" @bind-Value="product.ReleaseDate" class="form-control" />
+    </div>
+
+    <button type="submit" class="btn btn-primary">Save</button>
+    <button type="button" @onclick="Cancel" class="btn btn-secondary">Cancel</button>
+</EditForm>
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+
+    private Product product = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Id != 0)
+        {
+            var response = await ProductService.GetProductAsync(Id);
+            if (response.Success && response.Data != null)
+            {
+                product = response.Data;
+            }
+        }
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        ServiceResponse<Product> response;
+        if (product.Id == 0)
+        {
+            response = await ProductService.CreateProductAsync(product);
+        }
+        else
+        {
+            response = await ProductService.UpdateProductAsync(product);
+        }
+
+        if (response.Success)
+        {
+            NavigationManager.NavigateTo("/products");
+        }
+    }
+
+    private void Cancel()
+    {
+        NavigationManager.NavigateTo("/products");
+    }
+}

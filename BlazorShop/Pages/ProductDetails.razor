@@ -1,0 +1,65 @@
+﻿@page "/product/details/{id:int}"
+@inject IProductService ProductService
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+
+<h3>Product Details</h3>
+
+@if (product == null)
+{
+        <p><em>Loading...</em></p>
+}
+else
+{
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">@product.Title</h5>
+                <p class="card-text">@product.Description</p>
+                <p class="card-text"><strong>Price:</strong> @product.Price.ToString("C", CultureInfo.CurrentCulture)</p>
+                <p class="card-text"><strong>Release Date:</strong> @product.ReleaseDate.ToShortDateString()</p>
+                <button @onclick="NavigateToEditProduct" class="btn btn-warning">Edit</button>
+                <button @onclick="ConfirmDelete" class="btn btn-danger">Delete</button>
+            </div>
+        </div>
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+    private Product product;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var response = await ProductService.GetProductAsync(Id);
+        if (response.Success && response.Data != null)
+        {
+            product = response.Data;
+        }
+        else
+        {
+            await JSRuntime.InvokeVoidAsync("alert", "Failed to load product details. Please try again.");
+            NavigationManager.NavigateTo("/products");
+        }
+    }
+
+    private void NavigateToEditProduct()
+    {
+        NavigationManager.NavigateTo($"/product/edit/{Id}");
+    }
+
+    private async Task ConfirmDelete()
+    {
+        bool confirmed = await JSRuntime.InvokeAsync<bool>("confirm", "Are you sure you want to delete this product?");
+        if (confirmed)
+        {
+            var response = await ProductService.DeleteProductAsync(Id);
+            if (response.Success)
+            {
+                NavigationManager.NavigateTo("/products");
+            }
+            else
+            {
+                await JSRuntime.InvokeVoidAsync("alert", "Failed to delete product. Please try again.");
+            }
+        }
+    }
+}

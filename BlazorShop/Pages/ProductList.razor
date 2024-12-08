@@ -1,0 +1,166 @@
+﻿@page "/products"
+@using System.Globalization
+@inject IProductService ProductService
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+
+<h3 class="mb-4">Products List</h3>
+
+<button @onclick="NavigateToAddProduct" class="btn btn-success mb-3">Add Product</button>
+
+<!-- Filtering -->
+<div class="mb-3">
+    <InputText @bind-Value="parameters.Title" placeholder="Search by title..." class="form-control mb-2" />
+    <InputNumber @bind-Value="parameters.MinPrice" placeholder="Minimum price" class="form-control mb-2" />
+    <InputNumber @bind-Value="parameters.MaxPrice" placeholder="Maximum price" class="form-control mb-2" />
+    <button @onclick="LoadProducts" class="btn btn-primary">Filter</button>
+</div>
+
+<!-- Page Size Selection -->
+<div class="mb-3">
+    <label for="pageSize" class="form-label">Page Size:</label>
+    <InputNumber id="pageSize" class="form-control" @bind-Value="parameters.PageSize" @onchange="ChangePageSize" />
+</div>
+
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th @onclick="() => SortBy(nameof(Product.Title))" class="sortable">
+                Title @GetSortIndicator(nameof(Product.Title))
+            </th>
+            <th @onclick="() => SortBy(nameof(Product.Price))" class="sortable">
+                Price @GetSortIndicator(nameof(Product.Price))
+            </th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var product in products)
+        {
+            <tr>
+                <td>@product.Title</td>
+                <td>@product.Price.ToString("C", CultureInfo.CurrentCulture)</td>
+                <td>
+                    <button @onclick="() => ViewProductDetails(product.Id)" class="btn btn-info btn-sm">Details</button>
+                    <button @onclick="() => EditProduct(product.Id)" class="btn btn-warning btn-sm">Edit</button>
+                    <button @onclick="() => ConfirmDelete(product.Id)" class="btn btn-danger btn-sm">Delete</button>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+<!-- Pagination -->
+<div class="d-flex justify-content-between align-items-center mt-3">
+    <button @onclick="PreviousPage" class="btn btn-secondary" disabled="@(parameters.PageNumber == 1)">Previous</button>
+    <span>Page @parameters.PageNumber of @totalPages</span>
+    <button @onclick="NextPage" class="btn btn-secondary" disabled="@(parameters.PageNumber == totalPages)">Next</button>
+</div>
+
+<style>
+    .sortable {
+        cursor: pointer;
+    }
+
+    .sortable:hover {
+        text-decoration: underline;
+    }
+</style>
+
+@code {
+    private List<Product> products = new();
+    private QueryParameters parameters = new() { PageSize = 20 };
+    private int totalPages;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadProducts();
+    }
+
+    private async Task LoadProducts()
+    {
+        var response = await ProductService.GetProductsAsync(parameters);
+        if (response.Success && response.Data != null)
+        {
+            products = response.Data;
+            totalPages = (int)Math.Ceiling((double)response.TotalCount / parameters.PageSize);
+        }
+    }
+
+    private async Task SortBy(string orderBy)
+    {
+        if (parameters.OrderBy == orderBy)
+        {
+            parameters.OrderAsc = !parameters.OrderAsc;
+        }
+        else
+        {
+            parameters.OrderBy = orderBy;
+            parameters.OrderAsc = true;
+        }
+        parameters.PageNumber = 1; // Reset to the first page when sorting
+        await LoadProducts();
+    }
+
+    private async Task PreviousPage()
+    {
+        if (parameters.PageNumber > 1)
+        {
+            parameters.PageNumber--;
+            await LoadProducts();
+        }
+    }
+
+    private async Task NextPage()
+    {
+        if (parameters.PageNumber < totalPages)
+        {
+            parameters.PageNumber++;
+            await LoadProducts();
+        }
+    }
+
+    private void EditProduct(int id)
+    {
+        NavigationManager.NavigateTo($"/product/edit/{id}");
+    }
+
+    private async Task ConfirmDelete(int id)
+    {
+        bool confirmed = await JSRuntime.InvokeAsync<bool>("confirm", "Are you sure you want to delete this product?");
+        if (confirmed)
+        {
+            var response = await ProductService.DeleteProductAsync(id);
+            if (response.Success)
+            {
+                await LoadProducts();
+            }
+        }
+    }
+
+    private string GetSortIndicator(string columnName)
+    {
+        if (parameters.OrderBy != columnName)
+        {
+            return string.Empty;
+        }
+        return parameters.OrderAsc ? "▲" : "▼";
+    }
+
+    private void NavigateToAddProduct()
+    {
+        NavigationManager.NavigateTo("/product/add");
+    }
+
+    private void ViewProductDetails(int id)
+    {
+        NavigationManager.NavigateTo($"/product/details/{id}");
+    }
+
+    private async Task ChangePageSize(ChangeEventArgs e)
+    {
+        parameters.PageSize = int.Parse(e.Value.ToString());
+        parameters.PageNumber = 1; // Reset to the first page when page size changes
+        await LoadProducts();
+    }
+}
